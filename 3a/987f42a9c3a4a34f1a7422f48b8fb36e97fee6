@@ -1,0 +1,33 @@
+README.md
+  s_12f61dfe319b17::t_c36dde8a282781 1-68
+gradle/libs.versions.toml
+  s_12f61dfe319b17::t_c36dde8a282781 10
+app/src/main/java/com/example/rectlistreproducer/MainActivity.kt
+  s_12f61dfe319b17::t_c36dde8a282781 1,6-10,12,14-17,21,23-28,34-35,42-94,99-138,140-148
+app/build.gradle.kts
+  s_12f61dfe319b17::t_c36dde8a282781 7,13,54
+app/src/main/AndroidManifest.xml
+  s_12f61dfe319b17::t_c36dde8a282781 2,12,17,27
+settings.gradle.kts
+  s_12f61dfe319b17::t_c36dde8a282781 25
+app/src/main/res/values/themes.xml
+  s_12f61dfe319b17::t_c36dde8a282781 4-5
+app/src/main/res/values/strings.xml
+  s_12f61dfe319b17::t_c36dde8a282781 2-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "3a987f42a9c3a4a34f1a7422f48b8fb36e97fee6",
+  "prompts": {},
+  "sessions": {
+    "s_12f61dfe319b17": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f5bfff166ffeMMWvyVqivfAtvO",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Rodrigo Miranda <rodrigo.miranda@glovoapp.com>"
+    }
+  }
+}
