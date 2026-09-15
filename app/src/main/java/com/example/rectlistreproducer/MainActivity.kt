@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,7 +26,12 @@ import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil3.compose.ConstraintsSizeResolver
+import coil3.compose.rememberAsyncImagePainter
+import coil3.compose.rememberConstraintsSizeResolver
+import coil3.request.ImageRequest
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,16 +57,25 @@ private fun MainScreen() {
                 items = List(100) { it },
                 key = { it }
             ) { index ->
-                ListItem(index = index)
+                ListItem(
+                    modifier = Modifier.animateItem(),
+                    index = index
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ListItem(index: Int) {
+private fun ListItem(
+    modifier: Modifier = Modifier,
+    index: Int
+) {
+    val sizeResolver = rememberConstraintsSizeResolver()
+
     OverlayLayout(
-        modifier = Modifier
+        modifier = modifier
+            .then(sizeResolver)
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         anchor = {
@@ -71,6 +86,7 @@ private fun ListItem(index: Int) {
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                AnchorImage(sizeResolver = sizeResolver)
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Item $index",
@@ -86,13 +102,49 @@ private fun ListItem(index: Int) {
             }
         },
         marker = {
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .background(Color(0xFF4F46E5))
-            )
+            Marker(modifier = Modifier.size(24.dp))
         }
     )
+}
+
+@Composable
+private fun AnchorImage(
+    sizeResolver: ConstraintsSizeResolver,
+    modifier: Modifier = Modifier
+) {
+    val imageRequest = ImageRequest.Builder(LocalContext.current)
+        .data(R.drawable.placeholder_image)
+        .size(sizeResolver)
+        .build()
+
+    Box(
+        modifier = modifier
+            .size(64.dp)
+            .background(Color(0xFF4F46E5))
+    ) {
+        Image(
+            painter = rememberAsyncImagePainter(model = imageRequest),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(2.dp)
+        )
+    }
+}
+
+@Composable
+private fun Marker(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .background(Color.White)
+            .padding(2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF4F46E5))
+        )
+    }
 }
 
 @Composable

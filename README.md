@@ -13,8 +13,9 @@ second marker child relative to the anchor.
 
 ## Primary configuration
 
-- Compose BOM: `2026.09.00`
-- Expected AndroidX Compose UI: `1.12.1`
+- Compose BOM: `2026.08.00`
+- Expected AndroidX Compose UI: `1.12.0`
+- Coil Compose: `3.6.1`
 - Device: Android Emulator
 - Android version: Android 15
 - API level: 35
@@ -28,8 +29,12 @@ The dependency graph must be verified rather than inferred from the BOM:
   --configuration debugRuntimeClasspath
 ```
 
-The initial sample intentionally does not include image loading or other
-external runtime dependencies.
+The sample uses Coil only with a local drawable. It does not require network
+access. The same `ConstraintsSizeResolver` is used as a modifier on each
+custom-layout row and as the size resolver for the Coil image request.
+
+Each keyed lazy-list item also uses `Modifier.animateItem()` to exercise the
+placement-animation and remeasurement path present in the source scenario.
 
 ## Build and run
 
@@ -41,7 +46,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Launch the app on an Android 15 API 35 emulator. The list contains generated
-text-only content and does not require network access.
+text and a local placeholder image; no network access is required.
 
 ## Manual reproduction
 
