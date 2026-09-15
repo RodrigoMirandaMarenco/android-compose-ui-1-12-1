@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "io.github.rodrigomirandamarenco.composeuitest"
+    namespace = "com.example.rectlistreproducer"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "io.github.rodrigomirandamarenco.composeuitest"
+        applicationId = "com.example.rectlistreproducer"
         minSdk = 24
         targetSdk = 37
         versionCode = 1

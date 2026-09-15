@@ -22,6 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Compose UI Test"
+rootProject.name = "Compose RectList Reproducer"
 include(":app")
- 
