@@ -33,8 +33,11 @@ The sample uses Coil only with a local drawable. It does not require network
 access. The same `ConstraintsSizeResolver` is used as a modifier on each
 custom-layout row and as the size resolver for the Coil image request.
 
-Each keyed lazy-list item also uses `Modifier.animateItem()` to exercise the
-placement-animation and remeasurement path present in the source scenario.
+The screen also models a search-result transition: the initial `sample` query
+shows suggestion rows, then replaces them with heterogeneous result rows inside
+`AnimatedContent`. The result list intentionally uses unkeyed items so content
+replacement can recreate the node reuse and placement conditions involved in
+the reported failure.
 
 ## Build and run
 
@@ -52,11 +55,12 @@ text and a local placeholder image; no network access is required.
 
 1. Force-stop the application.
 2. Launch it and wait for the first frame.
-3. Perform five slow upward scrolls.
-4. Perform five fast flings from the middle of the list.
-5. Scroll back through the list and repeat the sequence.
-6. Repeat the complete sequence at least 20 times.
-7. Capture logcat only around a failure.
+3. Confirm the query displays `sample`.
+4. While suggestions are visible, wait for the transition to results or tap the header.
+5. Perform repeated fast downward flings through the result list.
+6. Repeat the query/content transition while the list is moving.
+7. Repeat the complete sequence at least 20 times.
+8. Capture logcat only around a failure.
 
 The expected failure signature, if reproduced, is:
 
