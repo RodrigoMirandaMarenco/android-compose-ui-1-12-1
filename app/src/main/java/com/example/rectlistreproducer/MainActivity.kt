@@ -34,8 +34,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.FirstBaseline
-import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layoutId
@@ -84,7 +82,7 @@ private fun MainScreen() {
             style = MaterialTheme.typography.headlineSmall
         )
         Text(
-            text = "Compose UI 1.12.0 / BOM 2026.08.00",
+            text = "Compose UI 1.12.1 / BOM 2026.09.00",
             style = MaterialTheme.typography.bodyMedium
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -248,7 +246,7 @@ private fun PositionedOverlayCase() {
     }
 
     Text(
-        text = "Custom baseline layout with onGloballyPositioned. Updates: $updates",
+        text = "Custom overlay layout with coordinate tracking. Updates: $updates",
         style = MaterialTheme.typography.bodyMedium
     )
     AnimatedContent(
@@ -264,8 +262,7 @@ private fun PositionedOverlayCase() {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             repeat(itemCount) { index ->
                 BaselineOverlay(
-                    modifier = Modifier
-                        .alignByBaseline(),
+                    modifier = Modifier,
                     index = index,
                     state = animatedState
                 )
@@ -306,7 +303,6 @@ private fun BaselineOverlay(
                         OverlayState.Loading -> "Loading"
                         OverlayState.Results -> "Result $index with changing content"
                     },
-                    modifier = Modifier.alignByBaseline(),
                     style = androidx.compose.ui.text.TextStyle(fontSize = 18.sp)
                 )
             }
@@ -352,16 +348,9 @@ private fun BaselineOverlayLayout(
         val markerPlaceable = measurables.first { it.layoutId == "marker" }.measure(
             constraints.copy(minHeight = 0)
         )
-        val firstBaseline = anchorPlaceable[FirstBaseline]
-        val lastBaseline = anchorPlaceable[LastBaseline]
-
         layout(
             width = anchorPlaceable.width,
             height = anchorPlaceable.height,
-            alignmentLines = mapOf(
-                FirstBaseline to firstBaseline,
-                LastBaseline to lastBaseline
-            )
         ) {
             anchorPlaceable.placeRelative(0, 0)
             markerPlaceable.placeRelative(
@@ -445,8 +434,7 @@ private fun LazyListStressCase() {
                     repeat(2) { column ->
                         BaselineOverlay(
                             modifier = Modifier
-                                .weight(1f)
-                                .alignByBaseline(),
+                                .weight(1f),
                             index = itemState.index * 2 + column,
                             state = itemState.state.toOverlayState()
                         )
@@ -544,14 +532,12 @@ private fun GenericSearchRow(item: GenericSearchItem) {
             GenericSearchVariant.Plain -> BasicText(
                 text = "Search result ${item.index}",
                 modifier = Modifier
-                    .weight(1f)
-                    .alignByBaseline(),
+                    .weight(1f),
                 style = androidx.compose.ui.text.TextStyle(fontSize = 18.sp)
             )
             GenericSearchVariant.Tagged -> BaselineOverlay(
                 modifier = Modifier
                     .weight(1f)
-                    .alignByBaseline()
                     .dynamicSquareLayout(),
                 index = item.index,
                 state = OverlayState.Results
@@ -559,7 +545,6 @@ private fun GenericSearchRow(item: GenericSearchItem) {
             GenericSearchVariant.Badged -> BaselineOverlay(
                 modifier = Modifier
                     .weight(1f)
-                    .alignByBaseline()
                     .dynamicSquareLayout(),
                 index = item.index,
                 state = OverlayState.Loading
@@ -568,7 +553,6 @@ private fun GenericSearchRow(item: GenericSearchItem) {
         BasicText(
             text = if (item.index % 2 == 0) "1000.00" else "10000.00",
             modifier = Modifier
-                .alignByBaseline()
                 .onGloballyPositioned { },
             style = androidx.compose.ui.text.TextStyle(
                 fontSize = if (item.index % 2 == 0) 12.sp else 28.sp

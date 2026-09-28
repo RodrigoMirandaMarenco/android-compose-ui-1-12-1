@@ -15,9 +15,8 @@ path implicated by the Compose UI `1.12.0` regression. It contains six cases:
 - A frame-driven `AnimatedContent` case that changes a numeric string between
   `1000.00` and `10000.00` while each character participates in baseline
   alignment.
-- A targeted case combining `onGloballyPositioned`, a custom layout that reads
-  and propagates baselines, `alignByBaseline()`, and rapid `AnimatedContent`
-  subtree replacement.
+- A targeted case combining `onGloballyPositioned`, a custom overlay layout,
+  and rapid `AnimatedContent` subtree replacement.
 - A `LazyColumn` stress case with a shared `LazyListState`, rapid
   suggestions/loading/results replacement, two independent `AnimatedContent`
   trees, `contentKey = { it.javaClass }`, unkeyed item reuse,
@@ -79,18 +78,23 @@ because the failing `RectManager` path only applies to nodes tracked in its
 `RectList`. The AndroidX regression test also includes a `LazyColumn` scrolling
 and reuse stress pattern, which is included here as a separate case.
 
-The shortest reliable trigger in this sample is `Stable search`. It combines
-the conditions that matter:
+The standalone mitigation removes custom baseline reads and propagated
+alignment lines from the overlay layout. The independent `Minimal`, `Exact
+stress`, and `Animated text` cases retain direct baseline alignment so the
+underlying Compose behavior remains available for comparison.
+
+Before the local mitigation, the shortest reliable trigger in this sample was
+`Stable search`. It combined the conditions that mattered:
 
 - A `LazyColumn` driven by real touch flings.
-- A custom layout that reads `FirstBaseline`/`LastBaseline` and republishes
-  them.
-- A sibling `Row` child using `alignByBaseline()`.
+- A custom overlay layout with coordinate tracking.
+- Heterogeneous rows with varying text sizes and placement constraints.
 - A nested custom `Modifier.layout` that changes constraints and placement.
 - `onGloballyPositioned`, semantics, and heterogeneous unkeyed rows so nodes
   participate in `RectList` tracking and reuse.
 
-The observed failure on Compose UI `1.12.1` is:
+The original observed failure on Compose UI `1.12.1`, before the local
+mitigation, was:
 
 ```text
 java.lang.IllegalArgumentException: LayoutNode <id> not found in RectList
@@ -103,10 +107,13 @@ touch gesture. This was reproduced on the Pixel 5 AVD running Android 17/API
 37. Keep the numeric layout-node identifier redacted in shared logs.
 
 Compose UI `1.12.1` contains the `NodeCoordinator.placeSelf()` guard that skips
-rect recalculation while `isPlacingForAlignment` is true. This reproducer still
-reaches the separate `MeasurePassDelegate.markNodeAndSubtreeAsPlaced()` path,
-which continues to call `RectManager.recalculateRectIfDirty()` and still fails
-under the same scroll/alignment conditions.
+rect recalculation while `isPlacingForAlignment` is true. The original
+reproducer still reached the separate `MeasurePassDelegate.markNodeAndSubtreeAsPlaced()`
+path, which is why the local layout mitigation is useful here.
+
+After the mitigation, `Stable search` remains available as a regression check,
+but it is expected not to crash because the custom overlay no longer reads or
+exports alignment lines and is no longer used as a baseline-aligned child.
 
 The expected failure signature, if reproduced, is:
 
