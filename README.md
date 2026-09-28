@@ -27,8 +27,8 @@ path implicated by the Compose UI `1.12.0` regression. It contains six cases:
 
 ## Primary configuration
 
-- Compose BOM: `2026.08.00`
-- Expected AndroidX Compose UI: `1.12.0`
+- Compose BOM: `2026.09.00`
+- Expected AndroidX Compose UI: `1.12.1`
 - Device: Android Emulator
 - Android version: Android 15
 - API level: 35
@@ -90,7 +90,7 @@ the conditions that matter:
 - `onGloballyPositioned`, semantics, and heterogeneous unkeyed rows so nodes
   participate in `RectList` tracking and reuse.
 
-On Compose UI `1.12.0`, the observed failure is:
+The observed failure on Compose UI `1.12.1` is:
 
 ```text
 java.lang.IllegalArgumentException: LayoutNode <id> not found in RectList
@@ -99,7 +99,14 @@ java.lang.IllegalArgumentException: LayoutNode <id> not found in RectList
 The stack traverses `RectManager.recalculateRectIfDirty()` from
 `MeasurePassDelegate.markNodeAndSubtreeAsPlaced()` during
 `AlignmentLines.recalculate()` while `LazyListState.onScroll()` is processing a
-touch gesture. Keep the numeric layout-node identifier redacted in shared logs.
+touch gesture. This was reproduced on the Pixel 5 AVD running Android 17/API
+37. Keep the numeric layout-node identifier redacted in shared logs.
+
+Compose UI `1.12.1` contains the `NodeCoordinator.placeSelf()` guard that skips
+rect recalculation while `isPlacingForAlignment` is true. This reproducer still
+reaches the separate `MeasurePassDelegate.markNodeAndSubtreeAsPlaced()` path,
+which continues to call `RectManager.recalculateRectIfDirty()` and still fails
+under the same scroll/alignment conditions.
 
 The expected failure signature, if reproduced, is:
 
