@@ -1,49 +1,53 @@
 package com.example.rectlistreproducer
 
 import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layoutId
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.input.pointer.pointerInput
-import coil3.compose.ConstraintsSizeResolver
-import coil3.compose.rememberAsyncImagePainter
-import coil3.compose.rememberConstraintsSizeResolver
-import coil3.request.ImageRequest
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,259 +60,298 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private enum class ReproducerCase {
+    Minimal,
+    ExactAlignmentStress,
+    AnimatedText,
+    PositionedOverlay,
+    LazyListStress,
+    StableSearchFlow
+}
+
 @Composable
 private fun MainScreen() {
-    var query by remember { mutableStateOf("sample") }
-    var contentState by remember { mutableStateOf(SearchContent.Suggestions) }
-    var transitionToken by remember { mutableStateOf(0) }
+    var selectedCase by remember { mutableStateOf(ReproducerCase.StableSearchFlow) }
 
-    LaunchedEffect(query, transitionToken) {
-        contentState = SearchContent.Suggestions
-        delay(700)
-        contentState = SearchContent.Results
-    }
-
-    Scaffold(modifier = Modifier.fillMaxSize()) { contentPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(contentPadding)
-        ) {
-            SearchHeader(
-                query = query,
-                onQueryChanged = { query = it },
-                onRepeatTransition = { transitionToken++ }
-            )
-            AnimatedContent(
-                targetState = contentState,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "Search content transition"
-            ) { state ->
-                SearchContent(state = state)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchHeader(
-    query: String,
-    onQueryChanged: (String) -> Unit,
-    onRepeatTransition: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .pointerInput(Unit) {
-                detectTapGestures {
-                    onQueryChanged("sample")
-                    onRepeatTransition()
-                }
-            },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "Search: $query",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(12.dp)
-        )
-    }
-}
-
-@Composable
-private fun SearchContent(state: SearchContent) {
-    val items = remember(state) {
-        when (state) {
-            SearchContent.Suggestions -> List(18) { SearchRow.Suggestion(it) }
-            SearchContent.Results -> List(100) { index ->
-                when (index % 4) {
-                    0 -> SearchRow.Tagged(index)
-                    1 -> SearchRow.Badged(index)
-                    2 -> SearchRow.Image(index)
-                    else -> SearchRow.Text(index)
-                }
-            }
-        }
-    }
-
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(state) { detectTapGestures {} },
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        items(items = items) { item ->
-            SearchItem(item)
+        Text(
+            text = "Compose alignment placement reproducer",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Text(
+            text = "Compose UI 1.12.0 / BOM 2026.08.00",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { selectedCase = ReproducerCase.Minimal }) {
+                Text("Minimal")
+            }
+            Button(onClick = { selectedCase = ReproducerCase.ExactAlignmentStress }) {
+                Text("Exact stress")
+            }
+            Button(onClick = { selectedCase = ReproducerCase.AnimatedText }) {
+                Text("Animated text")
+            }
+            Button(onClick = { selectedCase = ReproducerCase.PositionedOverlay }) {
+                Text("Positioned overlay")
+            }
+            Button(onClick = { selectedCase = ReproducerCase.LazyListStress }) {
+                Text("Lazy stress")
+            }
+            Button(onClick = { selectedCase = ReproducerCase.StableSearchFlow }) {
+                Text("Stable search")
+            }
+        }
+        when (selectedCase) {
+            ReproducerCase.Minimal -> MinimalAlignmentCase()
+            ReproducerCase.ExactAlignmentStress -> ExactAlignmentStressCase()
+            ReproducerCase.AnimatedText -> AnimatedTextCase()
+            ReproducerCase.PositionedOverlay -> PositionedOverlayCase()
+            ReproducerCase.LazyListStress -> LazyListStressCase()
+            ReproducerCase.StableSearchFlow -> StableSearchFlowCase()
         }
     }
 }
 
-private sealed interface SearchRow {
-    data class Suggestion(val index: Int) : SearchRow
-    data class Tagged(val index: Int) : SearchRow
-    data class Badged(val index: Int) : SearchRow
-    data class Image(val index: Int) : SearchRow
-    data class Text(val index: Int) : SearchRow
-}
-
-private enum class SearchContent {
-    Suggestions,
-    Results
-}
-
 @Composable
-private fun SearchItem(item: SearchRow) {
-    when (item) {
-        is SearchRow.Suggestion -> TextRow(text = "Suggestion ${item.index} for sample")
-        is SearchRow.Tagged -> BaselineOverlayItem(
-            index = item.index,
-            layout = OverlayLayoutVariant.Tagged
-        )
-        is SearchRow.Badged -> BaselineOverlayItem(
-            index = item.index,
-            layout = OverlayLayoutVariant.Badged
-        )
-        is SearchRow.Image -> BaselineOverlayItem(
-            index = item.index,
-            layout = OverlayLayoutVariant.Image
-        )
-        is SearchRow.Text -> TextRow(text = "Result ${item.index} for sample")
+private fun MinimalAlignmentCase() {
+    Text(
+        text = "Repeatedly enter and leave this screen or rotate the device while testing.",
+        style = MaterialTheme.typography.bodyMedium
+    )
+    Row(modifier = Modifier.padding(10.dp)) {
+        Row(modifier = Modifier.alignByBaseline()) {
+            BasicText(
+                text = "text",
+                modifier = Modifier
+                    .size(10.dp)
+                    .alignByBaseline(),
+                style = androidx.compose.ui.text.TextStyle(fontSize = 10.sp)
+            )
+        }
     }
 }
 
 @Composable
-private fun TextRow(text: String) {
-    Text(
-        text = text,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        style = MaterialTheme.typography.bodyLarge
-    )
-}
+private fun ExactAlignmentStressCase() {
+    var toggle by remember { mutableStateOf(false) }
+    var updates by remember { mutableIntStateOf(0) }
 
-private enum class OverlayLayoutVariant {
-    Tagged,
-    Badged,
-    Image
+    LaunchedEffect(Unit) {
+        while (true) {
+            toggle = !toggle
+            updates++
+            delay(16)
+        }
+    }
+
+    Text(
+        text = "Upstream tree with tracked aligned nodes. Updates: $updates",
+        style = MaterialTheme.typography.bodyMedium
+    )
+    Row(
+        modifier = Modifier
+            .padding(10.dp)
+            .onGloballyPositioned { }
+    ) {
+        Row(
+            modifier = Modifier
+                .alignByBaseline()
+                .onGloballyPositioned { }
+        ) {
+            if (toggle) {
+                BasicText(
+                    text = "text",
+                    modifier = Modifier
+                        .size(10.dp)
+                        .alignByBaseline()
+                        .onGloballyPositioned { },
+                    style = androidx.compose.ui.text.TextStyle(fontSize = 10.sp)
+                )
+            } else {
+                BasicText(
+                    text = "longer text",
+                    modifier = Modifier
+                        .size(20.dp)
+                        .alignByBaseline()
+                        .onGloballyPositioned { },
+                    style = androidx.compose.ui.text.TextStyle(fontSize = 20.sp)
+                )
+            }
+        }
+    }
 }
 
 @Composable
-private fun BaselineOverlayItem(
-    index: Int,
-    layout: OverlayLayoutVariant
-) {
-    val sizeResolver = rememberConstraintsSizeResolver()
+private fun AnimatedTextCase() {
+    var value by remember { mutableStateOf("1000.00") }
+    var updates by remember { mutableIntStateOf(0) }
 
-    OverlayLayout(
-        variant = layout,
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(sizeResolver)
-            .padding(horizontal = 16.dp),
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(120)
+            value = if (value == "1000.00") "10000.00" else "1000.00"
+            updates++
+        }
+    }
+
+    Text(
+        text = "The value changes length continuously. Updates: $updates",
+        style = MaterialTheme.typography.bodyMedium
+    )
+    Row(modifier = Modifier.padding(10.dp)) {
+        value.forEachIndexed { index, character ->
+            key(index) {
+                AnimatedContent(
+                    targetState = character,
+                    modifier = Modifier.alignByBaseline(),
+                    label = "Character $index"
+                ) { animatedCharacter ->
+                    BasicText(
+                        text = animatedCharacter.toString(),
+                        modifier = Modifier.alignByBaseline(),
+                        style = androidx.compose.ui.text.TextStyle(fontSize = 32.sp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private sealed interface OverlayState {
+    data object Suggestions : OverlayState
+    data object Loading : OverlayState
+    data object Results : OverlayState
+}
+
+@OptIn(ExperimentalAnimationApi::class)
+@Composable
+private fun PositionedOverlayCase() {
+    var state by remember { mutableStateOf<OverlayState>(OverlayState.Suggestions) }
+    var updates by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            state = when (state) {
+                OverlayState.Suggestions -> OverlayState.Loading
+                OverlayState.Loading -> OverlayState.Results
+                OverlayState.Results -> OverlayState.Suggestions
+            }
+            updates++
+            delay(80)
+        }
+    }
+
+    Text(
+        text = "Custom baseline layout with onGloballyPositioned. Updates: $updates",
+        style = MaterialTheme.typography.bodyMedium
+    )
+    AnimatedContent(
+        targetState = state,
+        contentKey = { animatedState -> animatedState.javaClass },
+        label = "Positioned overlay content"
+    ) { animatedState ->
+        val itemCount = when (animatedState) {
+            OverlayState.Suggestions -> 4
+            OverlayState.Loading -> 1
+            OverlayState.Results -> 8
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(itemCount) { index ->
+                BaselineOverlay(
+                    modifier = Modifier
+                        .alignByBaseline(),
+                    index = index,
+                    state = animatedState
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BaselineOverlay(
+    modifier: Modifier,
+    index: Int,
+    state: OverlayState
+) {
+    var absoluteLeft by remember { mutableIntStateOf(0) }
+    var absoluteTop by remember { mutableIntStateOf(0) }
+    var parentRight by remember { mutableIntStateOf(Int.MAX_VALUE) }
+    var parentTop by remember { mutableIntStateOf(Int.MIN_VALUE) }
+
+    BaselineOverlayLayout(
+        modifier = modifier
+            // Semantics and pointer input make these nodes RectList participants, matching the
+            // Nodes involved in the integration test and scrollable content.
+            .semantics { contentDescription = "RectList item $index" }
+            .pointerInput(index) {
+                awaitPointerEventScope {
+                    while (true) awaitPointerEvent()
+                }
+            },
         anchor = {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (layout == OverlayLayoutVariant.Image) {
-                    AnchorImage(sizeResolver = sizeResolver)
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Item $index",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "Generated content for a scrolling alignment-line sample. " +
-                            "This text intentionally wraps across multiple lines.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
+                BasicText(
+                    text = when (state) {
+                        OverlayState.Suggestions -> "Suggestion $index"
+                        OverlayState.Loading -> "Loading"
+                        OverlayState.Results -> "Result $index with changing content"
+                    },
+                    modifier = Modifier.alignByBaseline(),
+                    style = androidx.compose.ui.text.TextStyle(fontSize = 18.sp)
+                )
             }
         },
         marker = {
-            Marker(modifier = Modifier.size(if (layout == OverlayLayoutVariant.Badged) 32.dp else 24.dp))
-        }
+            Box(modifier = Modifier.size(if (state == OverlayState.Results) 32.dp else 24.dp))
+        },
+        onPositioned = { coordinates ->
+            val bounds = coordinates.boundsInWindow()
+            absoluteLeft = bounds.left.roundToInt()
+            absoluteTop = bounds.top.roundToInt()
+            coordinates.parentLayoutCoordinates
+                ?.parentLayoutCoordinates
+                ?.parentCoordinates
+                ?.boundsInWindow()
+                ?.let {
+                    parentRight = it.right.roundToInt()
+                    parentTop = it.top.roundToInt()
+                }
+        },
+        placementOffset = (parentRight - absoluteLeft - 1)
+            .coerceAtMost(0)
+            .coerceAtLeast(parentTop - absoluteTop)
     )
 }
 
 @Composable
-private fun AnchorImage(
-    sizeResolver: ConstraintsSizeResolver,
-    modifier: Modifier = Modifier
-) {
-    val imageRequest = ImageRequest.Builder(LocalContext.current)
-        .data(R.drawable.placeholder_image)
-        .size(sizeResolver)
-        .build()
-
-    Box(
-        modifier = modifier
-            .size(64.dp)
-            .background(Color(0xFF4F46E5))
-    ) {
-        Image(
-            painter = rememberAsyncImagePainter(model = imageRequest),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(2.dp)
-        )
-    }
-}
-
-@Composable
-private fun Marker(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .background(Color.White)
-            .padding(2.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF4F46E5))
-        )
-    }
-}
-
-@Composable
-private fun OverlayLayout(
+private fun BaselineOverlayLayout(
+    modifier: Modifier,
     anchor: @Composable () -> Unit,
     marker: @Composable () -> Unit,
-    variant: OverlayLayoutVariant,
-    modifier: Modifier = Modifier
+    onPositioned: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit = {},
+    placementOffset: Int = 0
 ) {
     Layout(
         content = {
-            Box(modifier = Modifier.layoutId(AnchorId)) {
-                anchor()
-            }
-            Box(modifier = Modifier.layoutId(MarkerId)) {
-                marker()
-            }
+            Box(modifier = Modifier.layoutId("anchor")) { anchor() }
+            Box(modifier = Modifier.layoutId("marker")) { marker() }
         },
-        modifier = modifier
+        modifier = modifier.onGloballyPositioned(onPositioned)
     ) { measurables, constraints ->
-        val anchorPlaceable = measurables
-            .first { it.layoutId == AnchorId }
-            .measure(constraints)
-        val markerConstraints = if (variant == OverlayLayoutVariant.Badged) {
+        val anchorPlaceable = measurables.first { it.layoutId == "anchor" }.measure(constraints)
+        val markerPlaceable = measurables.first { it.layoutId == "marker" }.measure(
             constraints.copy(minHeight = 0)
-        } else {
-            constraints
-        }
-        val markerPlaceable = measurables
-            .first { it.layoutId == MarkerId }
-            .measure(markerConstraints)
-
+        )
         val firstBaseline = anchorPlaceable[FirstBaseline]
         val lastBaseline = anchorPlaceable[LastBaseline]
 
@@ -322,15 +365,284 @@ private fun OverlayLayout(
         ) {
             anchorPlaceable.placeRelative(0, 0)
             markerPlaceable.placeRelative(
-                x = anchorPlaceable.width - markerPlaceable.width + 4.dp.roundToPx(),
-                y = -4.dp.roundToPx()
+                x = anchorPlaceable.width - markerPlaceable.width,
+                y = -4.dp.roundToPx() + placementOffset
             )
         }
     }
 }
 
-private const val AnchorId = "anchor"
-private const val MarkerId = "marker"
+private sealed interface LazyStressState {
+    data object Suggestions : LazyStressState
+    data object Loading : LazyStressState
+    data object Results : LazyStressState
+}
+
+@Composable
+private fun LazyListStressCase() {
+    val listState = rememberLazyListState()
+    var state by remember { mutableStateOf<LazyStressState>(LazyStressState.Suggestions) }
+    var updates by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            state = LazyStressState.Suggestions
+            delay(160)
+            state = LazyStressState.Loading
+            delay(40)
+            state = LazyStressState.Results
+            updates++
+            delay(160)
+        }
+    }
+    LaunchedEffect(listState) {
+        while (true) {
+            listState.scrollBy(24f)
+            delay(16)
+        }
+    }
+
+    Text(
+        text = "Shared LazyListState + two AnimatedContent trees. Updates: $updates",
+        style = MaterialTheme.typography.bodyMedium
+    )
+    AnimatedContent(
+        targetState = state.headerItems(),
+        contentKey = { animatedState -> animatedState.javaClass },
+        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        label = "Lazy stress header"
+    ) { headerItems ->
+        Column {
+            headerItems.forEachIndexed { index, itemState ->
+                BaselineOverlay(
+                    modifier = Modifier.fillMaxWidth(),
+                    index = index,
+                    state = itemState.state.toOverlayState()
+                )
+            }
+        }
+    }
+    AnimatedContent(
+        targetState = state.bodyItems(),
+        contentKey = { animatedState -> animatedState.javaClass },
+        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        label = "Lazy stress content"
+    ) { bodyItems ->
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) { },
+            userScrollEnabled = true
+        ) {
+            items(bodyItems) { itemState ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    repeat(2) { column ->
+                        BaselineOverlay(
+                            modifier = Modifier
+                                .weight(1f)
+                                .alignByBaseline(),
+                            index = itemState.index * 2 + column,
+                            state = itemState.state.toOverlayState()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StableSearchFlowCase() {
+    val listState = rememberLazyListState()
+    var showingResults by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(700)
+        showingResults = true
+    }
+
+    Text(
+        text = "Search: sample",
+        style = MaterialTheme.typography.titleMedium
+    )
+    Text(
+        text = if (showingResults) {
+            "Results loaded. Perform fast downward flings."
+        } else {
+            "Loading results..."
+        },
+        style = MaterialTheme.typography.bodyMedium
+    )
+    AnimatedContent(
+        targetState = if (showingResults) GenericSearchContent.Results else GenericSearchContent.Suggestions,
+        contentKey = { animatedState -> animatedState.javaClass },
+        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        label = "Stable search transition"
+    ) { content ->
+        val items = when (content) {
+            GenericSearchContent.Suggestions -> GenericSearchSuggestions
+            GenericSearchContent.Results -> GenericSearchResults
+        }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            items(items) { item ->
+                GenericSearchRow(item = item)
+            }
+        }
+    }
+}
+
+private enum class GenericSearchContent {
+    Suggestions,
+    Results
+}
+
+private data class GenericSearchItem(
+    val index: Int,
+    val variant: GenericSearchVariant
+)
+
+private enum class GenericSearchVariant {
+    Tagged,
+    Badged,
+    Plain
+}
+
+private val GenericSearchSuggestions = List(18) { index ->
+    GenericSearchItem(index, GenericSearchVariant.Plain)
+}
+
+private val GenericSearchResults = List(160) { index ->
+    GenericSearchItem(
+        index = index,
+        variant = when (index % 3) {
+            0 -> GenericSearchVariant.Tagged
+            1 -> GenericSearchVariant.Badged
+            else -> GenericSearchVariant.Plain
+        }
+    )
+}
+
+@Composable
+private fun GenericSearchRow(item: GenericSearchItem) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        when (item.variant) {
+            GenericSearchVariant.Plain -> BasicText(
+                text = "Search result ${item.index}",
+                modifier = Modifier
+                    .weight(1f)
+                    .alignByBaseline(),
+                style = androidx.compose.ui.text.TextStyle(fontSize = 18.sp)
+            )
+            GenericSearchVariant.Tagged -> BaselineOverlay(
+                modifier = Modifier
+                    .weight(1f)
+                    .alignByBaseline()
+                    .dynamicSquareLayout(),
+                index = item.index,
+                state = OverlayState.Results
+            )
+            GenericSearchVariant.Badged -> BaselineOverlay(
+                modifier = Modifier
+                    .weight(1f)
+                    .alignByBaseline()
+                    .dynamicSquareLayout(),
+                index = item.index,
+                state = OverlayState.Loading
+            )
+        }
+        BasicText(
+            text = if (item.index % 2 == 0) "1000.00" else "10000.00",
+            modifier = Modifier
+                .alignByBaseline()
+                .onGloballyPositioned { },
+            style = androidx.compose.ui.text.TextStyle(
+                fontSize = if (item.index % 2 == 0) 12.sp else 28.sp
+            )
+        )
+    }
+}
+
+private fun Modifier.dynamicSquareLayout(): Modifier =
+    fillMaxSize().layout { measurable, constraints ->
+        val fallback = 64.dp.roundToPx()
+        val availableWidth = if (constraints.hasBoundedWidth) constraints.maxWidth else fallback
+        val availableHeight = if (constraints.hasBoundedHeight) constraints.maxHeight else fallback
+        val side = minOf(availableWidth, availableHeight)
+        val placeable = measurable.measure(
+            constraints.copy(minWidth = 0, maxWidth = side, minHeight = 0, maxHeight = side)
+        )
+        layout(side, side) {
+            placeable.placeRelative(
+                x = (side - placeable.width) / 2,
+                y = (side - placeable.height) / 2
+            )
+        }
+    }
+
+private data class StressItem(
+    val index: Int,
+    val state: LazyStressState
+)
+
+private class SuggestionsItems : AbstractList<StressItem>() {
+    private val items = List(30) { StressItem(it, LazyStressState.Suggestions) }
+
+    override val size: Int get() = items.size
+
+    override fun get(index: Int): StressItem = items[index]
+}
+
+private class LoadingItems(
+    private val state: LazyStressState
+) : AbstractList<StressItem>() {
+    override val size: Int get() = 1
+
+    override fun get(index: Int): StressItem {
+        check(index == 0)
+        return StressItem(0, state)
+    }
+}
+
+private class ResultsItems : AbstractList<StressItem>() {
+    private val items = List(120) { StressItem(it, LazyStressState.Results) }
+
+    override val size: Int get() = items.size
+
+    override fun get(index: Int): StressItem = items[index]
+}
+
+private fun LazyStressState.headerItems(): List<StressItem> = when (this) {
+    LazyStressState.Suggestions -> emptyList()
+    LazyStressState.Loading -> LoadingItems(this)
+    LazyStressState.Results -> ResultsItems().subList(0, 2)
+}
+
+private fun LazyStressState.bodyItems(): List<StressItem> = when (this) {
+    LazyStressState.Suggestions -> SuggestionsItems()
+    LazyStressState.Loading -> LoadingItems(this)
+    LazyStressState.Results -> ResultsItems()
+}
+
+private fun LazyStressState.toOverlayState(): OverlayState = when (this) {
+    LazyStressState.Suggestions -> OverlayState.Suggestions
+    LazyStressState.Loading -> OverlayState.Loading
+    LazyStressState.Results -> OverlayState.Results
+}
 
 @Composable
 private fun RectListReproducerTheme(content: @Composable () -> Unit) {
