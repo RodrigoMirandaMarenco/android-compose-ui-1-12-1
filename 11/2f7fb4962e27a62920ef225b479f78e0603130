@@ -1,0 +1,30 @@
+README.md
+  s_12f61dfe319b17::t_8a66f9b7ac86be 9,11-12,14-16,20-21,24,32,39-52,55,57,61,65-70,76,79-81,86-92,95-97
+  s_12f61dfe319b17::t_293e18eb010020 53-54,56,58-59
+app/src/main/java/com/example/rectlistreproducer/MainActivity.kt
+  s_12f61dfe319b17::t_dbdd39ff906ab7 42
+  s_12f61dfe319b17::t_c5d883aa74a51b 426-427
+  s_12f61dfe319b17::t_d5f9a2a1f38723 307
+  s_12f61dfe319b17::t_43074f366a2377 384
+  s_12f61dfe319b17::t_ed9543e97a4eea 418,421-425
+  s_12f61dfe319b17::t_293e18eb010020 317-318
+  s_12f61dfe319b17::t_9634b9b79a104b 279
+  s_12f61dfe319b17::t_08ff13bbd3562a 432,435,442,444,446-447
+  s_12f61dfe319b17::t_4fee49225feee9 445
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "112f7fb4962e27a62920ef225b479f78e0603130",
+  "prompts": {},
+  "sessions": {
+    "s_12f61dfe319b17": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f5bfff166ffeMMWvyVqivfAtvO",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Rodrigo Miranda <rodrigo.miranda@glovoapp.com>"
+    }
+  }
+}
