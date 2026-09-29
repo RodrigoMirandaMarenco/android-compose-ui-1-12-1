@@ -25,7 +25,6 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,32 +58,60 @@ private fun MainScreen() {
     }
 }
 
-private sealed interface OverlayState {
-    data object Suggestions : OverlayState
-    data object Loading : OverlayState
-    data object Results : OverlayState
+@Composable
+private fun StableSearchFlowCase() {
+    val listState = rememberLazyListState()
+
+    Text(
+        text = "Search: sample",
+        style = MaterialTheme.typography.titleMedium
+    )
+    Text(
+        text = "Results loaded. Perform fast downward flings.",
+        style = MaterialTheme.typography.bodyMedium
+    )
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        items(GenericSearchResults) { index ->
+            GenericSearchRow(index = index)
+        }
+    }
+}
+
+@Composable
+private fun GenericSearchRow(index: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        BaselineOverlay(
+            modifier = Modifier
+                .fillMaxWidth()
+                .dynamicSquareLayout(),
+            index = index,
+        )
+    }
 }
 
 @Composable
 private fun BaselineOverlay(
     modifier: Modifier,
     index: Int,
-    state: OverlayState
 ) {
     BaselineOverlayLayout(
         modifier = modifier,
         anchor = {
             Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 BasicText(
-                    text = when (state) {
-                        OverlayState.Suggestions -> "Suggestion $index"
-                        OverlayState.Loading -> "Loading"
-                        OverlayState.Results -> "Result $index with changing content"
-                    },
-                    style = androidx.compose.ui.text.TextStyle(fontSize = 18.sp)
+                    text = "Result $index with changing content",
                 )
             }
         },
@@ -118,48 +145,7 @@ private fun BaselineOverlayLayout(
     }
 }
 
-@Composable
-private fun StableSearchFlowCase() {
-    val listState = rememberLazyListState()
-
-    Text(
-        text = "Search: sample",
-        style = MaterialTheme.typography.titleMedium
-    )
-    Text(
-        text = "Results loaded. Perform fast downward flings.",
-        style = MaterialTheme.typography.bodyMedium
-    )
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        items(GenericSearchResults) { index ->
-            GenericSearchRow(index = index)
-        }
-    }
-}
-
 private val GenericSearchResults = List(160) { it }
-
-@Composable
-private fun GenericSearchRow(index: Int) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        BaselineOverlay(
-            modifier = Modifier
-                .fillMaxWidth()
-                .dynamicSquareLayout(),
-            index = index,
-            state = OverlayState.Results,
-        )
-    }
-}
 
 private fun Modifier.dynamicSquareLayout(): Modifier =
     fillMaxSize().layout { measurable, constraints ->
