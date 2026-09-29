@@ -37,17 +37,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layoutId
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -280,21 +275,8 @@ private fun BaselineOverlay(
     index: Int,
     state: OverlayState
 ) {
-    var absoluteLeft by remember { mutableIntStateOf(0) }
-    var absoluteTop by remember { mutableIntStateOf(0) }
-    var parentRight by remember { mutableIntStateOf(Int.MAX_VALUE) }
-    var parentTop by remember { mutableIntStateOf(Int.MIN_VALUE) }
-
     BaselineOverlayLayout(
-        modifier = modifier
-            // Semantics and pointer input make these nodes RectList participants, matching the
-            // Nodes involved in the integration test and scrollable content.
-            .semantics { contentDescription = "RectList item $index" }
-            .pointerInput(index) {
-                awaitPointerEventScope {
-                    while (true) awaitPointerEvent()
-                }
-            },
+        modifier = modifier,
         anchor = {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -306,30 +288,10 @@ private fun BaselineOverlay(
                         OverlayState.Loading -> "Loading"
                         OverlayState.Results -> "Result $index with changing content"
                     },
-                    modifier = Modifier.alignByBaseline(),
                     style = androidx.compose.ui.text.TextStyle(fontSize = 18.sp)
                 )
             }
         },
-        marker = {
-            Box(modifier = Modifier.size(if (state == OverlayState.Results) 32.dp else 24.dp))
-        },
-        onPositioned = { coordinates ->
-            val bounds = coordinates.boundsInWindow()
-            absoluteLeft = bounds.left.roundToInt()
-            absoluteTop = bounds.top.roundToInt()
-            coordinates.parentLayoutCoordinates
-                ?.parentLayoutCoordinates
-                ?.parentCoordinates
-                ?.boundsInWindow()
-                ?.let {
-                    parentRight = it.right.roundToInt()
-                    parentTop = it.top.roundToInt()
-                }
-        },
-        placementOffset = (parentRight - absoluteLeft - 1)
-            .coerceAtMost(0)
-            .coerceAtLeast(parentTop - absoluteTop)
     )
 }
 
@@ -337,37 +299,25 @@ private fun BaselineOverlay(
 private fun BaselineOverlayLayout(
     modifier: Modifier,
     anchor: @Composable () -> Unit,
-    marker: @Composable () -> Unit,
-    onPositioned: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit = {},
-    placementOffset: Int = 0
 ) {
     Layout(
         content = {
             Box(modifier = Modifier.layoutId("anchor")) { anchor() }
-            Box(modifier = Modifier.layoutId("marker")) { marker() }
         },
-        modifier = modifier.onGloballyPositioned(onPositioned)
+        modifier = modifier
     ) { measurables, constraints ->
         val anchorPlaceable = measurables.first { it.layoutId == "anchor" }.measure(constraints)
-        val markerPlaceable = measurables.first { it.layoutId == "marker" }.measure(
-            constraints.copy(minHeight = 0)
-        )
         val firstBaseline = anchorPlaceable[FirstBaseline]
         val lastBaseline = anchorPlaceable[LastBaseline]
-
         layout(
             width = anchorPlaceable.width,
             height = anchorPlaceable.height,
             alignmentLines = mapOf(
                 FirstBaseline to firstBaseline,
-                LastBaseline to lastBaseline
-            )
+                LastBaseline to lastBaseline,
+            ),
         ) {
             anchorPlaceable.placeRelative(0, 0)
-            markerPlaceable.placeRelative(
-                x = anchorPlaceable.width - markerPlaceable.width,
-                y = -4.dp.roundToPx() + placementOffset
-            )
         }
     }
 }
@@ -431,8 +381,7 @@ private fun LazyListStressCase() {
         LazyColumn(
             state = listState,
             modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) { },
+                .fillMaxSize(),
             userScrollEnabled = true
         ) {
             items(bodyItems) { itemState ->
@@ -460,119 +409,42 @@ private fun LazyListStressCase() {
 @Composable
 private fun StableSearchFlowCase() {
     val listState = rememberLazyListState()
-    var showingResults by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        delay(700)
-        showingResults = true
-    }
 
     Text(
         text = "Search: sample",
         style = MaterialTheme.typography.titleMedium
     )
     Text(
-        text = if (showingResults) {
-            "Results loaded. Perform fast downward flings."
-        } else {
-            "Loading results..."
-        },
+        text = "Results loaded. Perform fast downward flings.",
         style = MaterialTheme.typography.bodyMedium
     )
-    AnimatedContent(
-        targetState = if (showingResults) GenericSearchContent.Results else GenericSearchContent.Suggestions,
-        contentKey = { animatedState -> animatedState.javaClass },
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
-        label = "Stable search transition"
-    ) { content ->
-        val items = when (content) {
-            GenericSearchContent.Suggestions -> GenericSearchSuggestions
-            GenericSearchContent.Results -> GenericSearchResults
-        }
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            items(items) { item ->
-                GenericSearchRow(item = item)
-            }
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        items(GenericSearchResults) { index ->
+            GenericSearchRow(index = index)
         }
     }
 }
 
-private enum class GenericSearchContent {
-    Suggestions,
-    Results
-}
-
-private data class GenericSearchItem(
-    val index: Int,
-    val variant: GenericSearchVariant
-)
-
-private enum class GenericSearchVariant {
-    Tagged,
-    Badged,
-    Plain
-}
-
-private val GenericSearchSuggestions = List(18) { index ->
-    GenericSearchItem(index, GenericSearchVariant.Plain)
-}
-
-private val GenericSearchResults = List(160) { index ->
-    GenericSearchItem(
-        index = index,
-        variant = when (index % 3) {
-            0 -> GenericSearchVariant.Tagged
-            1 -> GenericSearchVariant.Badged
-            else -> GenericSearchVariant.Plain
-        }
-    )
-}
+private val GenericSearchResults = List(160) { it }
 
 @Composable
-private fun GenericSearchRow(item: GenericSearchItem) {
+private fun GenericSearchRow(index: Int) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        when (item.variant) {
-            GenericSearchVariant.Plain -> BasicText(
-                text = "Search result ${item.index}",
-                modifier = Modifier
-                    .weight(1f)
-                    .alignByBaseline(),
-                style = androidx.compose.ui.text.TextStyle(fontSize = 18.sp)
-            )
-            GenericSearchVariant.Tagged -> BaselineOverlay(
-                modifier = Modifier
-                    .weight(1f)
-                    .alignByBaseline()
-                    .dynamicSquareLayout(),
-                index = item.index,
-                state = OverlayState.Results
-            )
-            GenericSearchVariant.Badged -> BaselineOverlay(
-                modifier = Modifier
-                    .weight(1f)
-                    .alignByBaseline()
-                    .dynamicSquareLayout(),
-                index = item.index,
-                state = OverlayState.Loading
-            )
-        }
-        BasicText(
-            text = if (item.index % 2 == 0) "1000.00" else "10000.00",
+        BaselineOverlay(
             modifier = Modifier
-                .alignByBaseline()
-                .onGloballyPositioned { },
-            style = androidx.compose.ui.text.TextStyle(
-                fontSize = if (item.index % 2 == 0) 12.sp else 28.sp
-            )
+                .fillMaxWidth()
+                .dynamicSquareLayout(),
+            index = index,
+            state = OverlayState.Results,
         )
     }
 }

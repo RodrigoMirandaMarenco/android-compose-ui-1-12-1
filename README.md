@@ -6,35 +6,22 @@ Standalone Android sample for investigating:
 java.lang.IllegalArgumentException: LayoutNode <id> not found in RectList
 ```
 
-The sample uses public AndroidX Compose APIs to exercise the alignment-placement
-path implicated by the Compose UI `1.12.0` regression. It contains six cases:
+The sample contains three cases:
 
-- An upstream-minimal nested `Row`/`BasicText` baseline-alignment case.
-- The same upstream tree with tracked aligned nodes and 60 Hz size/content
+- `Minimal`: upstream-minimal nested `Row`/`BasicText` baseline alignment.
+- `Exact stress`: the same alignment tree with tracked nodes and rapid content
   replacement.
-- A frame-driven `AnimatedContent` case that changes a numeric string between
-  `1000.00` and `10000.00` while each character participates in baseline
-  alignment.
-- A targeted case combining `onGloballyPositioned`, a custom layout that reads
-  and propagates baselines, `alignByBaseline()`, and rapid `AnimatedContent`
-  subtree replacement.
-- A `LazyColumn` stress case with a shared `LazyListState`, rapid
-  suggestions/loading/results replacement, two independent `AnimatedContent`
-  trees, `contentKey = { it.javaClass }`, unkeyed item reuse,
-  baseline-aligned custom layouts, and continuous programmatic scrolling.
-- A stable generic search flow that loads heterogeneous results once and waits
-  for manual fast downward flings.
+- `Stable search`: the reduced lazy-list reproducer.
 
-## Primary configuration
+## Primary Configuration
 
 - Compose BOM: `2026.09.00`
 - Expected AndroidX Compose UI: `1.12.1`
-- Device: Android Emulator
-- Android version: Android 15
-- API level: 35
+- Device: Pixel 5 AVD
+- Android: API 37
 - Runtime network access: not required
 
-The dependency graph must be verified rather than inferred from the BOM:
+Verify the resolved dependency:
 
 ```sh
 ./gradlew :app:dependencyInsight \
@@ -42,82 +29,69 @@ The dependency graph must be verified rather than inferred from the BOM:
   --configuration debugRuntimeClasspath
 ```
 
-No network access or external runtime dependency is required for these cases.
-The standalone app intentionally does not include Coil so the Compose runtime
-under test is unambiguous.
-
-## Build and run
-
-From a clean checkout with a configured Android SDK:
+## Build and Run
 
 ```sh
 ./gradlew :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Launch the app on an Android 15 API 35 emulator. The list contains generated
-text and a local placeholder image; no network access is required.
+Launch the app and select `Stable search`.
 
-## Manual reproduction
+## Reduced Reproduction
+
+The `Stable search` case contains the smallest surviving combination found in
+this repository:
+
+- A touch-scrolled `LazyColumn`.
+- One custom `Layout` per unkeyed lazy-list row.
+- The custom layout reads `FirstBaseline` and `LastBaseline` from its anchor.
+- The custom layout republishes those alignment lines.
+- A nested `Modifier.layout` changes constraints and placement.
+
+The following conditions were removed without preventing the crash:
+
+- `AnimatedContent` and state replacement.
+- Heterogeneous row variants and outer sibling text.
+- Coordinate reads from `onGloballyPositioned`.
+- Semantics and pointer-input modifiers.
+- The second overlay marker child.
+- Explicit outer `Modifier.alignByBaseline()` on the custom layout.
+
+Manual sequence:
 
 1. Force-stop the application.
 2. Launch it and wait for the first frame.
-3. Select `Minimal` and observe the baseline-aligned content.
-4. Select `Exact stress` and leave it running for at least two minutes.
-5. Select `Animated text` and leave it running while the value changes length.
-6. Select `Positioned overlay` and leave it running through repeated
-   suggestions/loading/results replacements.
-7. Select `Lazy stress` and leave it running while the list is continuously
-   replaced and scrolled.
-8. Select `Stable search`, wait for `Results loaded`, then perform repeated fast
-   downward flings through the results.
-9. Repeat the complete sequence at least 20 times.
-10. Capture logcat only around a failure.
+3. Leave `Stable search` selected.
+4. Perform repeated fast downward flings through the list.
+5. Repeat the sequence at least 20 times.
+6. Capture logcat only around a failure.
 
-The targeted cases intentionally register `onGloballyPositioned`. This matters
-because the failing `RectManager` path only applies to nodes tracked in its
-`RectList`. The AndroidX regression test also includes a `LazyColumn` scrolling
-and reuse stress pattern, which is included here as a separate case.
-
-The shortest reliable trigger in this sample is `Stable search`. It combines
-the conditions that matter:
-
-- A `LazyColumn` driven by real touch flings.
-- A custom layout that reads `FirstBaseline`/`LastBaseline` and republishes
-  them.
-- A sibling `Row` child using `alignByBaseline()`.
-- A nested custom `Modifier.layout` that changes constraints and placement.
-- `onGloballyPositioned`, semantics, and heterogeneous unkeyed rows so nodes
-  participate in `RectList` tracking and reuse.
-
-The observed failure on Compose UI `1.12.1` is:
+The expected failure signature is:
 
 ```text
 java.lang.IllegalArgumentException: LayoutNode <id> not found in RectList
 ```
 
-The stack traverses `RectManager.recalculateRectIfDirty()` from
-`MeasurePassDelegate.markNodeAndSubtreeAsPlaced()` during
-`AlignmentLines.recalculate()` while `LazyListState.onScroll()` is processing a
-touch gesture. This was reproduced on the Pixel 5 AVD running Android 17/API
-37. Keep the numeric layout-node identifier redacted in shared logs.
-
-Compose UI `1.12.1` contains the `NodeCoordinator.placeSelf()` guard that skips
-rect recalculation while `isPlacingForAlignment` is true. This reproducer still
-reaches the separate `MeasurePassDelegate.markNodeAndSubtreeAsPlaced()` path,
-which continues to call `RectManager.recalculateRectIfDirty()` and still fails
-under the same scroll/alignment conditions.
-
-The expected failure signature, if reproduced, is:
+The observed stack enters:
 
 ```text
-java.lang.IllegalArgumentException: LayoutNode <id> not found in RectList
+RectManager.recalculateRectIfDirty()
+MeasurePassDelegate.markNodeAndSubtreeAsPlaced()
+LazyListState.onScroll()
 ```
 
 Keep the numeric layout-node identifier redacted as `<id>` in shared evidence.
 
+## Comparison Cases
+
+`Minimal` isolates direct baseline alignment without lazy scrolling or custom
+alignment-line propagation.
+
+`Exact stress` adds tracked nodes and rapid replacement to the upstream tree.
+
 ## Scope
 
-This repository is intended to isolate public Compose behavior. It contains no
-proprietary application code, private dependencies, network endpoints,
-analytics, crash reporting, or application-specific data.
+This repository contains only public AndroidX Compose APIs. It has no
+application-specific code, private dependencies, network endpoints, analytics,
+or production data.
