@@ -75,9 +75,3 @@ LazyListState.onScroll()
 
 This was reproduced on a Pixel 5 AVD running Android 17/API 37. Keep the
 numeric layout-node identifier redacted as `<id>` in shared evidence.
-
-## Scope
-
-This repository contains only public AndroidX Compose APIs. It has no
-application-specific code, private dependencies, network endpoints, analytics,
-or production data.
